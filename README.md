@@ -32,9 +32,6 @@
 ## Установка и запуск
 
 ```bash
-# Клонировать репозиторий
-git clone https://github.com/ваш-username/guess-number-game.git
-cd guess-number-game
 
 # Установить зависимости
 npm install
