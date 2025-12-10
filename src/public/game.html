@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Угадай число - Игровая площадка</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎲 Игровая площадка</h1>
+            <div class="nav">
+                <a href="/" class="btn btn-outline">🏠 Главная</a>
+                <button id="resetGame" class="btn btn-outline">🔄 Новая игра</button>
+            </div>
+        </header>
+        
+        <main>
+            <div class="game-container">
+                <div class="game-panel">
+                    <h2>⚙️ Настройки игры</h2>
+                    <div class="form-group">
+                        <label for="playerName">👤 Ваше имя:</label>
+                        <input type="text" id="playerName" placeholder="Введите ваше имя" value="Игрок">
+                    </div>
+                    <div class="form-group">
+                        <label for="minRange">🔽 Минимальное число:</label>
+                        <input type="number" id="minRange" value="1" min="1" max="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="maxRange">🔼 Максимальное число:</label>
+                        <input type="number" id="maxRange" value="100" min="10" max="1000">
+                    </div>
+                    <button id="startGame" class="btn btn-primary">
+                        🎮 Начать новую игру
+                    </button>
+                    
+                    <div class="stats" id="gameStats">
+                        <h3>📊 Статистика игры</h3>
+                        <p>Начните игру, чтобы увидеть статистику</p>
+                    </div>
+                </div>
+                
+                <div class="game-panel">
+                    <h2>🎯 Игровой процесс</h2>
+                    
+                    <div id="gameStatus" class="game-status">
+                        <p>Нажмите "Начать новую игру" чтобы начать</p>
+                    </div>
+                    
+                    <div id="guessSection" style="display: none;">
+                        <div class="form-group">
+                            <label for="guessInput">🎯 Ваше предположение:</label>
+                            <input type="number" id="guessInput" placeholder="Введите число">
+                        </div>
+                        <button id="submitGuess" class="btn btn-success">
+                            📤 Проверить
+                        </button>
+                    </div>
+                    
+                    <div id="attemptsHistory" class="attempts-history">
+                        <h3>📜 История попыток</h3>
+                        <div id="attemptsList"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+<!--
+        <footer>
+            <p>Используйте API для игры: POST /api/game/guess, GET /api/game/state, GET /api/game/stats</p>
+        </footer>
+    </div>
+-->    
+    <script>
+        // Основные переменные
+        let currentGameId = null;
+
+        // DOM элементы
+        const startGameBtn = document.getElementById('startGame');
+        const submitGuessBtn = document.getElementById('submitGuess');
+        const guessInput = document.getElementById('guessInput');
+        const guessSection = document.getElementById('guessSection');
+        const gameStatus = document.getElementById('gameStatus');
+        const attemptsList = document.getElementById('attemptsList');
+        const resetGameBtn = document.getElementById('resetGame');
+        const gameStats = document.getElementById('gameStats');
+
+        // Начать новую игру
+        startGameBtn.addEventListener('click', async () => {
+            const playerName = document.getElementById('playerName').value;
+            const minRange = parseInt(document.getElementById('minRange').value);
+            const maxRange = parseInt(document.getElementById('maxRange').value);
+            
+            if (minRange >= maxRange) {
+                showMessage('Минимальное число должно быть меньше максимального', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/game/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player: playerName,
+                        min: minRange,
+                        max: maxRange
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentGameId = data.gameId;
+                    guessSection.style.display = 'block';
+                    showMessage(data.message, 'success');
+                    updateGameStats();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showMessage('Ошибка соединения с сервером', 'error');
+            }
+        });
+
+        // Сделать предположение
+        submitGuessBtn.addEventListener('click', async () => {
+            if (!guessInput.value) {
+                showMessage('Введите число', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/game/guess', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        guess: guessInput.value
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage(data.message, data.status === 'win' ? 'success' : 'info');
+                    updateAttemptsHistory(data.game.guesses);
+                    guessInput.value = '';
+                    
+                    if (data.status === 'win' || data.status === 'lose') {
+                        guessSection.style.display = 'none';
+                    }
+                    
+                    updateGameStats();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showMessage('Ошибка соединения с сервером', 'error');
+            }
+        });
+
+        // Сбросить игру
+        resetGameBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/game/reset', {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentGameId = null;
+                    guessSection.style.display = 'none';
+                    attemptsList.innerHTML = '';
+                    showMessage(data.message, 'success');
+                    updateGameStats();
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showMessage('Ошибка сброса игры', 'error');
+            }
+        });
+
+        // Обновить историю попыток
+        function updateAttemptsHistory(guesses) {
+            attemptsList.innerHTML = '';
+            
+            if (!guesses || guesses.length === 0) {
+                attemptsList.innerHTML = '<p>Попыток еще не было</p>';
+                return;
+            }
+            
+            guesses.forEach(guess => {
+                const attemptItem = document.createElement('div');
+                attemptItem.className = 'attempt-item';
+                
+                const guessNumber = document.createElement('span');
+                guessNumber.textContent = `Попытка ${guess.attempt}: ${guess.number}`;
+                
+                const guessTime = document.createElement('span');
+                const time = new Date(guess.timestamp);
+                guessTime.textContent = time.toLocaleTimeString();
+                
+                attemptItem.appendChild(guessNumber);
+                attemptItem.appendChild(guessTime);
+                attemptsList.prepend(attemptItem);
+            });
+        }
+
+        // Обновить статистику игры
+        async function updateGameStats() {
+            try {
+                const response = await fetch('/api/game/stats?type=detailed');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let statsHTML = '<h3>📊 Статистика игры</h3>';
+                    
+                    if (data.active) {
+                        statsHTML += `
+                            <p><strong>Игра активна:</strong> Да</p>
+                            <p><strong>Игрок:</strong> ${data.lastGame.player}</p>
+                            <p><strong>Попыток:</strong> ${data.lastGame.attempts}</p>
+                            <p><strong>Время игры:</strong> ${data.details.timePlaying} сек</p>
+                            <p><strong>Диапазон:</strong> ${data.details.range}</p>
+                        `;
+                    } else {
+                        statsHTML += `
+                            <p><strong>Игра активна:</strong> Нет</p>
+                            <p>Начните новую игру, чтобы увидеть статистику</p>
+                        `;
+                    }
+                    
+                    gameStats.innerHTML = statsHTML;
+                }
+            } catch (error) {
+                console.error('Ошибка получения статистики:', error);
+            }
+        }
+
+        // Показать сообщение
+        function showMessage(message, type = 'info') {
+            let icon = 'ℹ️';
+            let color = '#74b9ff';
+            
+            switch(type) {
+                case 'success':
+                    icon = '✅';
+                    color = '#00b894';
+                    break;
+                case 'error':
+                    icon = '❌';
+                    color = '#d63031';
+                    break;
+                case 'warning':
+                    icon = '⚠️';
+                    color = '#fdcb6e';
+                    break;
+            }
+            
+            gameStatus.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; margin-bottom: 10px;">${icon}</div>
+                    <p style="font-size: 1.2rem; color: ${color};">${message}</p>
+                </div>
+            `;
+        }
+
+        // Разрешить отправку формы по нажатию Enter
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitGuessBtn.click();
+            }
+        });
+
+        // Инициализация
+        updateGameStats();
+    </script>
+</body>
+</html>

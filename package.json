@@ -1,0 +1,16 @@
+{
+  "name": "guess-number-game",
+  "version": "1.0.0",
+  "description": "Мини-игра 'Угадай число' на Express.js",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "keywords": ["express", "game", "number-guessing"],
+  "author": "Student",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}
