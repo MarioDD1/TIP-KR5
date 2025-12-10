@@ -16,7 +16,7 @@
 4. **Структурированная архитектура** (routes, controllers, middleware)
 
 
-##Демонстрация приложения
+## Демонстрация приложения
 
 Главная страница:
 <img width="1754" height="769" alt="image" src="https://github.com/user-attachments/assets/a5881332-33c5-45af-918c-39829bd2ec4b" />
